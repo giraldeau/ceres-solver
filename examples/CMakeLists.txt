@@ -47,6 +47,9 @@ target_link_libraries(helloworld_analytic_diff ceres)
 add_executable(curve_fitting curve_fitting.cc)
 target_link_libraries(curve_fitting ceres)
 
+add_executable(curve_fitting_dyn curve_fitting_dyn.cc)
+target_link_libraries(curve_fitting_dyn ceres)
+
 add_executable(rosenbrock rosenbrock.cc)
 target_link_libraries(rosenbrock ceres)
 
