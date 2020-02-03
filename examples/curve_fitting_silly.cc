@@ -134,10 +134,13 @@ struct SillyExponentialResidual {
       double x = data_[i * 2 + 0];
       double y = data_[i * 2 + 1];
       T val = y - exp(m[0] * x + c[0]);
-      tmp += val * val;
+      tmp += val;
+      // FIXME: can we compute the norm of the residual ourselves?
+      // tmp += val * val;
     }
-    //residual[0] = sqrt(tmp);
     residual[0] = tmp;
+    // Does not converges
+    // residual[0] = sqrt(tmp);
     return true;
   }
 
