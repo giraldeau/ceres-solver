@@ -35,8 +35,8 @@
 #include "ceres/ceres.h"
 #include "glog/logging.h"
 
+using ceres::AutoDiffCostFunction;
 using ceres::CostFunction;
-using ceres::DynamicAutoDiffCostFunction;
 using ceres::Problem;
 using ceres::Solve;
 using ceres::Solver;
@@ -124,42 +124,20 @@ const double data[] = {
 };
 // clang-format on
 
-struct DynamicExponentialResidual {
-  DynamicExponentialResidual(const double* data, size_t n)
-      : data_(data), n_(n) {}
-
-  template <typename T>
-  bool operator()(T const* const* param, T* residual) const {
-    const T* m = &param[0][0];
-    const T* c = &param[0][1];
-
-    for (size_t i = 0; i < n_; i++) {
-      double x = data_[i * 2 + 0];
-      double y = data_[i * 2 + 1];
-      T val = y - exp(m[0] * x + c[0]);
-      residual[i] = val;
-    }
-    return true;
-  }
-
- private:
-  const double* data_;
-  const size_t n_;
-};
-
 struct SillyExponentialResidual {
   SillyExponentialResidual(const double* data, size_t n) : data_(data), n_(n) {}
 
   template <typename T>
-  bool operator()(T const* const* param, T* residual) const {
-    const T* m = &param[0][0];
-    const T* c = &param[0][1];
+  bool operator()(const T* const m, const T* const c, T* residual) const {
+    T tmp{0.0};
     for (size_t i = 0; i < n_; i++) {
       double x = data_[i * 2 + 0];
       double y = data_[i * 2 + 1];
       T val = y - exp(m[0] * x + c[0]);
-      residual[0] += val * val;
+      tmp += val * val;
     }
+    //residual[0] = sqrt(tmp);
+    residual[0] = tmp;
     return true;
   }
 
@@ -169,22 +147,21 @@ struct SillyExponentialResidual {
 };
 
 int main(int argc, char** argv) {
+  (void)argc;
   google::InitGoogleLogging(argv[0]);
 
-  double m = 0.0;
-  double c = 0.0;
+  double m_initial = 0.0;
+  double c_initial = 0.0;
+  double m = m_initial;
+  double c = c_initial;
 
   Problem problem;
 
-  DynamicAutoDiffCostFunction<SillyExponentialResidual, 4>* cost_function =
-      new DynamicAutoDiffCostFunction<SillyExponentialResidual, 4>(
-          new SillyExponentialResidual(data, kNumObservations));
-  std::vector<double> model_parameter_block = {m, c};
-  cost_function->AddParameterBlock(int(model_parameter_block.size()));
-  cost_function->SetNumResiduals(1);
-
-  std::vector<double*> parameter_blocks = {model_parameter_block.data()};
-  problem.AddResidualBlock(cost_function, NULL, parameter_blocks);
+  // clang-format off
+  auto cost_function = new AutoDiffCostFunction<SillyExponentialResidual, 1, 1, 1>(
+      new SillyExponentialResidual(data, kNumObservations));
+  // clang-format on
+  problem.AddResidualBlock(cost_function, NULL, &m, &c);
 
   Solver::Options options;
   options.max_num_iterations = 25;
@@ -194,11 +171,8 @@ int main(int argc, char** argv) {
   Solver::Summary summary;
   Solve(options, &problem, &summary);
 
-  double m_final = model_parameter_block[0];
-  double c_final = model_parameter_block[1];
-
   std::cout << summary.BriefReport() << "\n";
-  std::cout << "Initial m: " << m << " c: " << c << "\n";
-  std::cout << "Final   m: " << m_final << " c: " << c_final << "\n";
+  std::cout << "Initial m: " << m_initial << " c: " << c_initial << "\n";
+  std::cout << "Final   m: " << m << " c: " << c << "\n";
   return 0;
 }

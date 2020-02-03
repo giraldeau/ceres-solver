@@ -35,8 +35,8 @@
 #include "ceres/ceres.h"
 #include "glog/logging.h"
 
+using ceres::AutoDiffCostFunction;
 using ceres::CostFunction;
-using ceres::DynamicAutoDiffCostFunction;
 using ceres::Problem;
 using ceres::Solve;
 using ceres::Solver;
@@ -129,10 +129,7 @@ struct DynamicExponentialResidual {
       : data_(data), n_(n) {}
 
   template <typename T>
-  bool operator()(T const* const* param, T* residual) const {
-    const T* m = &param[0][0];
-    const T* c = &param[0][1];
-
+  bool operator()(const T* const m, const T* const c, T* residual) const {
     for (size_t i = 0; i < n_; i++) {
       double x = data_[i * 2 + 0];
       double y = data_[i * 2 + 1];
@@ -148,22 +145,21 @@ struct DynamicExponentialResidual {
 };
 
 int main(int argc, char** argv) {
+  (void)argc;
   google::InitGoogleLogging(argv[0]);
 
-  double m = 0.0;
-  double c = 0.0;
+  double m_initial = 0.0;
+  double c_initial = 0.0;
+  double m = m_initial;
+  double c = c_initial;
 
   Problem problem;
 
-  DynamicAutoDiffCostFunction<DynamicExponentialResidual, 4>* cost_function =
-      new DynamicAutoDiffCostFunction<DynamicExponentialResidual, 4>(
-          new DynamicExponentialResidual(data, kNumObservations));
-  std::vector<double> model_parameter_block = {m, c};
-  cost_function->AddParameterBlock(int(model_parameter_block.size()));
-  cost_function->SetNumResiduals(kNumObservations);
-
-  std::vector<double*> parameter_blocks = {model_parameter_block.data()};
-  problem.AddResidualBlock(cost_function, NULL, parameter_blocks);
+  // clang-format off
+  auto cost_function = new AutoDiffCostFunction<DynamicExponentialResidual, ceres::DYNAMIC, 1, 1>(
+      new DynamicExponentialResidual(data, kNumObservations), kNumObservations);
+  // clang-format on
+  problem.AddResidualBlock(cost_function, NULL, &m, &c);
 
   Solver::Options options;
   options.max_num_iterations = 25;
@@ -173,11 +169,8 @@ int main(int argc, char** argv) {
   Solver::Summary summary;
   Solve(options, &problem, &summary);
 
-  double m_final = model_parameter_block[0];
-  double c_final = model_parameter_block[1];
-
   std::cout << summary.BriefReport() << "\n";
-  std::cout << "Initial m: " << m << " c: " << c << "\n";
-  std::cout << "Final   m: " << m_final << " c: " << c_final << "\n";
+  std::cout << "Initial m: " << m_initial << " c: " << c_initial << "\n";
+  std::cout << "Final   m: " << m << " c: " << c << "\n";
   return 0;
 }
