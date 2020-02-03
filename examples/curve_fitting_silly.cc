@@ -134,9 +134,11 @@ struct SillyExponentialResidual {
       double x = data_[i * 2 + 0];
       double y = data_[i * 2 + 1];
       T val = y - exp(m[0] * x + c[0]);
-      tmp += val;
+      // we have to use abs() or ^2 for the sum, because the cost can become
+      // zero with a sum of pos and neg errors.
+      // tmp += val;
       // FIXME: can we compute the norm of the residual ourselves?
-      // tmp += val * val;
+      tmp += val * val;
     }
     residual[0] = tmp;
     // Does not converges
