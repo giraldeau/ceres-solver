@@ -50,6 +50,9 @@ target_link_libraries(curve_fitting ceres)
 add_executable(curve_fitting_dyn curve_fitting_dyn.cc)
 target_link_libraries(curve_fitting_dyn ceres)
 
+add_executable(curve_fitting_silly curve_fitting_silly.cc)
+target_link_libraries(curve_fitting_silly ceres)
+
 add_executable(rosenbrock rosenbrock.cc)
 target_link_libraries(rosenbrock ceres)
 
